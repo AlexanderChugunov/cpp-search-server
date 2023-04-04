@@ -138,7 +138,9 @@ private:
         }
         return query;
     }
-
+    double make_IDF(const string& word) const {
+        return log(1.0 * document_count_ / word_to_document_freqs[word].size());
+    }
 
     vector<Document> FindAllDocuments(const Query& query_words) const {
         vector<Document> matched_documents;
@@ -148,8 +150,9 @@ private:
             if (word_to_document_freqs.count(query) == 0) {
                 continue;
             }
+            const double IDF = make_IDF(query);
             for (auto& [id, relevance] : word_to_document_freqs[query]) {
-                document_to_relevance[id] += relevance * log((double)document_count_ / word_to_document_freqs[query].size());
+                document_to_relevance[id] += relevance * IDF;
             }
         }
 
@@ -194,7 +197,7 @@ int main() {
 
     const string query = ReadLine();
     for (const auto& [document_id, relevance] : search_server.FindTopDocuments(query)) {
-                cout << "{ document_id = "s << document_id << ", "
-                << "relevance = "s << relevance << " }"s << endl;
+        cout << "{ document_id = "s << document_id << ", "
+            << "relevance = "s << relevance << " }"s << endl;
     }
 }
