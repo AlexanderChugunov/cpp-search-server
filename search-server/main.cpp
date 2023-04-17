@@ -1,15 +1,8 @@
-// 13.04.23.00.cpp : Этот файл содержит функцию "main". Здесь начинается и заканчивается выполнение программы.
-//
 
 #include <iostream>
-
-int main()
-{
-    std::cout << "Hello World!\n";
-}
 #include <algorithm>
+#include <sstream>
 #include <cmath>
-#include <iostream>
 #include <map>
 #include <set>
 #include <string>
@@ -18,6 +11,7 @@ int main()
 
 using namespace std;
 
+/* Подставьте вашу реализацию класса SearchServer сюда */
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 
 string ReadLine() {
@@ -190,7 +184,7 @@ private:
         // Word shouldn't be empty
         if (text[0] == '-') {
             is_minus = true;
-            text = text.substr(1);
+text = text.substr(1);
         }
         return { text, is_minus, IsStopWord(text) };
     }
@@ -255,44 +249,220 @@ private:
     }
 };
 
-// ==================== для примера =========================
-
-void PrintDocument(const Document& document) {
-    cout << "{ "s
-        << "document_id = "s << document.id << ", "s
-        << "relevance = "s << document.relevance << ", "s
-        << "rating = "s << document.rating
-        << " }"s << endl;
+template <typename First, typename Second>
+ostream& operator<<(ostream& out, const pair<First, Second>& p) {
+    return out << p.first << ": "s << p.second;
 }
-int main() {
+
+template <typename Container>
+void Print(ostream& out, const Container& container) {
+    bool is_first = true;
+    for (const auto& element : container) {
+        if (!is_first) {
+            out << ", "s;
+        }
+        is_first = false;
+        out << element;
+    }
+}
+
+
+template <typename Element>
+ostream& operator<<(ostream& out, const set<Element>& container) {
+    out << "{";
+    Print(out, container);
+    out << "}";
+    return out;
+}
+template <typename Element>
+ostream& operator<<(ostream& out, const vector<Element>& container) {
+    out << "{";
+    Print(out, container);
+    out << "}";
+    return out;
+}
+
+
+template <typename Key, typename Value>
+ostream& operator<<(ostream& out, const map<Key, Value>& container) {
+    out << "{";
+    Print(out, container);
+    out << "}";
+    return out;
+}
+
+
+template <typename T, typename U>
+void AssertEqualImpl(const T& t, const U& u, const string& t_str, const string& u_str, const string& file,
+    const string& func, unsigned line, const string& hint) {
+
+    if (u != t) {
+        cout << boolalpha;
+        cout << file << "("s << line << "): "s << func << ": "s;
+        cout << "ASSERT_EQUAL("s << t_str << ", "s << u_str << ") failed: "s;
+        cout << t << " != "s << u << "."s;
+        if (!hint.empty()) {
+            cout << " Hint: "s << hint;
+        }
+        cout << endl;
+        abort();
+    }
+
+}
+
+
+
+#define ASSERT_EQUAL(a, b) AssertEqualImpl((a), (b), #a, #b, __FILE__, __FUNCTION__, __LINE__, ""s)
+
+#define ASSERT_EQUAL_HINT(a, b, hint) AssertEqualImpl((a), (b), #a, #b, __FILE__, __FUNCTION__, __LINE__, (hint))
+
+void AssertImpl(bool value, const string& expr_str, const string& file, const string& func, unsigned line,
+    const string& hint) {
+    if (!value) {
+        cout << file << "("s << line << "): "s << func << ": "s;
+        cout << "ASSERT("s << expr_str << ") failed."s;
+        if (!hint.empty()) {
+            cout << " Hint: "s << hint;
+        }
+        cout << endl;
+        abort();
+    }
+}
+
+#define ASSERT(expr) AssertImpl(!!(expr), #expr, __FILE__, __FUNCTION__, __LINE__, ""s)
+
+#define ASSERT_HINT(expr, hint) AssertImpl(!!(expr), #expr, __FILE__, __FUNCTION__, __LINE__, (hint))
+// -------- Начало модульных тестов поисковой системы ----------
+
+// Тест проверяет, что поисковая система исключает стоп-слова при добавлении документов
+void TestExcludeStopWordsFromAddedDocumentContent() {
+    const int doc_id = 42;
+    const string content = "cat in the city"s;
+    const vector<int> ratings = { 1, 2, 3 };
+    {
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        const auto found_docs = server.FindTopDocuments("in"s);
+        ASSERT_EQUAL(found_docs.size(), 1u);
+        const Document& doc0 = found_docs[0];
+        ASSERT_EQUAL(doc0.id, doc_id);
+    }
+
+    {
+        SearchServer server;
+        server.SetStopWords("in the"s);
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        ASSERT_HINT(server.FindTopDocuments("in"s).empty(),
+            "Stop words must be excluded from documents"s);
+    }
+}
+void TestMinusWords() {
+    const int doc_id = 42;
+    const string content = "cat in the city"s;
+    const vector<int> ratings = { 1, 2, 3 };
+    const int doc_id_2 = 41;
+    const string content_2 = "cat city"s;
+    const vector<int> ratings_2 = { 1, 2 };
+    SearchServer server;
+    {
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        server.AddDocument(doc_id_2, content_2, DocumentStatus::ACTUAL, ratings_2);
+        ASSERT_EQUAL(server.FindTopDocuments("cat -in"s).size(), 1); // int int
+    }
+}
+void TestMatch() {
+    SearchServer server;
+    const int doc_id_3 = 40;
+    const string content_3 = "cat city like milk"s;
+    const vector<int> ratings_3 = { 1, 2 };
+    server.AddDocument(doc_id_3, content_3, DocumentStatus::ACTUAL, ratings_3);
+    tuple<vector<string>, DocumentStatus> test = { {"cat"s, "like"s}, DocumentStatus::ACTUAL };
+    tuple<vector<string>, DocumentStatus> test1 = server.MatchDocument("cat like", 40);
+    tuple<vector<string>, DocumentStatus> test2 = server.MatchDocument("cat -milk", 40);
+    tuple<vector<string>, DocumentStatus> test3 = { {} , DocumentStatus::ACTUAL };
+    vector<string>bad_copy = get<0>(test);
+    vector<string>bad_copy1 = get<0>(test1);
+    vector<string>bad_copy2 = get<0>(test2);
+    vector<string>bad_copy3 = get<0>(test3);
+    ASSERT_EQUAL(bad_copy, bad_copy1); //tuple((1,2,3,..),status)
+    ASSERT_EQUAL(bad_copy2, bad_copy3);//tuple((1,2,3,..),status)
+}
+void TestRelev() {
     SearchServer search_server;
     search_server.SetStopWords("и в на"s);
     search_server.AddDocument(0, "белый кот и модный ошейник"s, DocumentStatus::ACTUAL, { 8, -3 });
     search_server.AddDocument(1, "пушистый кот пушистый хвост"s, DocumentStatus::ACTUAL, { 7, 2, 7 });
     search_server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, { 5, -12, 2, 1 });
     search_server.AddDocument(3, "ухоженный скворец евгений"s, DocumentStatus::BANNED, { 9 });
-    cout << "ACTUAL by default:"s << endl;
-    for (const Document& document : search_server.FindTopDocuments("пушистый ухоженный кот"s)) {
-        PrintDocument(document);
+    vector<double> test1 = { 0.866434,0.173287,0.173287 };
+    vector<Document> copy = search_server.FindTopDocuments("пушистый ухоженный кот"s);
+    int i = 0;
+    bool flag = true;
+    for (auto& x : copy) {
+        if (abs(x.relevance - test1[i]) < std::numeric_limits<double>::epsilon()) {
+            flag = false;
+            break;
+        }
+        ++i;
     }
-    cout << "BANNED:"s << endl;
-    for (const Document& document : search_server.FindTopDocuments("пушистый ухоженный кот"s, DocumentStatus::BANNED)) {
-        PrintDocument(document);
+    ASSERT(flag);
+}
+void TestRaiting() {
+    SearchServer server;
+    const int doc_id_4 = 39;
+    const string content_4 = "cat city like milk"s;
+    const vector<int> ratings_4 = { 1, 2, 3 };
+    server.AddDocument(doc_id_4, content_4, DocumentStatus::ACTUAL, ratings_4);
+    vector<Document> copy = server.FindTopDocuments("cat"s);
+    int sum = 0;
+    for (auto& x : copy) {
+        sum += x.rating;
     }
-    cout << "Even ids:"s << endl;
-    for (const Document& document : search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return document_id % 2 == 0; })) {
-        PrintDocument(document);
-    }
-    return 0;
+    ASSERT_EQUAL(sum / copy.size(), 2); // int int
+}
+void TestPredicat() {
+    SearchServer server;
+    const int doc_id_5 = 38;
+    const string content_5 = "cat city like milk"s;
+    const vector<int> ratings_5 = { 1, 2, 3 };
+    server.AddDocument(doc_id_5, content_5, DocumentStatus::ACTUAL, ratings_5);
+    server.AddDocument(3, "trash"s, DocumentStatus::BANNED, { 9 });
+    auto copy = server.FindTopDocuments("milk"s, [](int document_id, DocumentStatus status, int rating) { return document_id % 2 == 0; });
+    ASSERT_EQUAL(copy.size(), 1); //int int
+}
+void TestStatus() {
+    SearchServer search_server;
+    search_server.SetStopWords("и в на"s);
+    search_server.AddDocument(0, "белый кот и модный ошейник"s, DocumentStatus::ACTUAL, { 8, -3 });
+    search_server.AddDocument(1, "пушистый кот пушистый хвост"s, DocumentStatus::ACTUAL, { 7, 2, 7 });
+    search_server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, { 5, -12, 2, 1 });
+    search_server.AddDocument(3, "ухоженный скворец евгений"s, DocumentStatus::BANNED, { 9 });
+    vector<Document> copy = search_server.FindTopDocuments("пушистый ухоженный кот"s, DocumentStatus::BANNED);
+    ASSERT_EQUAL(copy.size(), 1); //int int
+}
+/*
+Разместите код остальных тестов здесь
+*/
+
+// Функция TestSearchServer является точкой входа для запуска тестов
+void TestSearchServer() {
+    TestExcludeStopWordsFromAddedDocumentContent();
+    TestMinusWords();
+    TestMatch();
+    TestRelev();
+    TestRaiting();
+    TestPredicat();
+    TestStatus();
+
+    // Не забудьте вызывать остальные тесты здесь
 }
 
-// Запуск программы: CTRL+F5 или меню "Отладка" > "Запуск без отладки"
-// Отладка программы: F5 или меню "Отладка" > "Запустить отладку"
+// --------- Окончание модульных тестов поисковой системы -----------
 
-// Советы по началу работы 
-//   1. В окне обозревателя решений можно добавлять файлы и управлять ими.
-//   2. В окне Team Explorer можно подключиться к системе управления версиями.
-//   3. В окне "Выходные данные" можно просматривать выходные данные сборки и другие сообщения.
-//   4. В окне "Список ошибок" можно просматривать ошибки.
-//   5. Последовательно выберите пункты меню "Проект" > "Добавить новый элемент", чтобы создать файлы кода, или "Проект" > "Добавить существующий элемент", чтобы добавить в проект существующие файлы кода.
-//   6. Чтобы снова открыть этот проект позже, выберите пункты меню "Файл" > "Открыть" > "Проект" и выберите SLN-файл.
+int main() {
+    TestSearchServer();
+    // Если вы видите эту строку, значит все тесты прошли успешно
+    cout << "Search server testing finished"s << endl;
+}
+
+
