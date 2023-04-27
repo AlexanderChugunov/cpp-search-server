@@ -95,9 +95,6 @@ public:
         : SearchServer(
             SplitIntoWords(stop_words_text))  // Invoke delegating constructor from string container
     {
-        if (!IsValidWord(stop_words_text)) {
-            throw invalid_argument("invalid_argument");
-        }
     }
 
 
@@ -127,7 +124,7 @@ public:
         }
         const Query query = ParseQuery(raw_query);
         for (const auto& minus : query.minus_words) {
-            if ((minus[0] == '-') || (minus.empty()) || !IsValidWord(minus)) {
+            if ((minus.empty()) || !IsValidWord(minus)) {
                 throw invalid_argument("invalid_argument");
             }
         }
@@ -167,7 +164,7 @@ public:
     }
     int GetDocumentId(int index) const {
         if ((documents_id.size() <= index) || (index < 0)) {
-           /* return SearchServer::INVALID_DOCUMENT_ID;*/
+            /* return SearchServer::INVALID_DOCUMENT_ID;*/
             throw out_of_range("out_of_range");
         }
         return documents_id[index];
@@ -180,7 +177,7 @@ public:
 
         const Query query = ParseQuery(raw_query);
         for (const auto& minus : query.minus_words) {
-            if ((minus[0] == '-') || (minus.empty()) || !IsValidWord(minus)) {
+            if (minus.empty()) {
                 throw invalid_argument("invalid_argument");
             }
         }
@@ -264,6 +261,9 @@ private:
         if (text[0] == '-') {
             is_minus = true;
             text = text.substr(1);
+            if (text[0] == '-') {
+                throw invalid_argument("invalid_argument");
+            }
         }
         return { text, is_minus, IsStopWord(text) };
     }
@@ -351,7 +351,7 @@ int main() {
         search_server.AddDocument(1, "пушистый кот пушистый хвост"s, DocumentStatus::ACTUAL, { 7, 2, 7 });
         search_server.AddDocument(1, "пушистый пёс и модный ошейник"s, DocumentStatus::ACTUAL, { 1, 2 });
     }
-    catch (const invalid_argument &e){
+    catch (const invalid_argument& e) {
         cout << "Ошибка: ADD повтор id " << e.what() << endl;
     }
     try {
@@ -368,9 +368,9 @@ int main() {
     }
     try {
         const auto documents = search_server.FindTopDocuments("--пушистый"s);
-            for (const Document& document : documents) {
-                PrintDocument(document);
-            }
+        for (const Document& document : documents) {
+            PrintDocument(document);
+        }
     }
     catch (const invalid_argument& e) {
         cout << "Ошибка: FindTopDocuments " << e.what() << endl;
