@@ -119,15 +119,9 @@ public:
 
     template <typename DocumentPredicate>
     vector<Document> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
-        if (!IsValidWord(raw_query)) {
-            throw invalid_argument("invalid_argument");
-        }
+
         const Query query = ParseQuery(raw_query);
-        for (const auto& minus : query.minus_words) {
-            if ((minus.empty()) || !IsValidWord(minus)) {
-                throw invalid_argument("invalid_argument");
-            }
-        }
+
 
         auto matched_documents = FindAllDocuments(query, document_predicate);
 
@@ -170,17 +164,9 @@ public:
         return documents_id[index];
     }
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
-        if (!IsValidWord(raw_query)) {
-            throw invalid_argument("invalid_argument");
-        }
-
 
         const Query query = ParseQuery(raw_query);
-        for (const auto& minus : query.minus_words) {
-            if (minus.empty()) {
-                throw invalid_argument("invalid_argument");
-            }
-        }
+
         vector<string> matched_words;
         for (const string& word : query.plus_words) {
             if (word_to_document_freqs_.count(word) == 0) {
@@ -261,10 +247,12 @@ private:
         if (text[0] == '-') {
             is_minus = true;
             text = text.substr(1);
-            if (text[0] == '-') {
+            if ((text.empty()) || !IsValidWord(text) || (text[0] == '-')) {
                 throw invalid_argument("invalid_argument");
             }
+
         }
+
         return { text, is_minus, IsStopWord(text) };
     }
 
@@ -275,6 +263,9 @@ private:
 
     Query ParseQuery(const string& text) const {
         Query query;
+        if (!IsValidWord(text)) {
+            throw invalid_argument("invalid_argument");
+        }
         for (const string& word : SplitIntoWords(text)) {
             const QueryWord query_word = ParseQueryWord(word);
             if (!query_word.is_stop) {
