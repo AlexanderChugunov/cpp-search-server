@@ -42,7 +42,10 @@ std::set<int>::const_iterator SearchServer::end() const
     return document_ids_.end();
 }
 const std::set<std::string>& SearchServer::GetWordFrequencies(int document_id) const {
-
+    if (document_to_word_freqs_.count(document_id) == 0) {
+        const std::set<std::string> mySet = {};
+        return mySet;
+    }
     return document_to_word_freqs_.at(document_id);
 }
 
@@ -50,6 +53,9 @@ void SearchServer::RemoveDocument(int document_id)
 {
     if (documents_.count(document_id) > 0)
     {
+        for (auto word : document_to_word_freqs_.at(document_id)) {
+            word_to_document_freqs_[word].erase(document_id);
+        }
         documents_.erase(document_id);
         document_to_word_freqs_.erase(document_id);
         document_ids_.erase(document_id);
