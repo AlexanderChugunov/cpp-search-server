@@ -2,6 +2,7 @@
 #include <utility>
 #include <cmath>
 #include <numeric>
+
 void SearchServer::AddDocument(int document_id, const std::string& document, DocumentStatus status,
     const std::vector<int>& ratings) {
     if ((document_id < 0) || (documents_.count(document_id) > 0)) {
@@ -11,18 +12,48 @@ void SearchServer::AddDocument(int document_id, const std::string& document, Doc
     const double inv_word_count = 1.0 / words.size();
     for (const std::string& word : words) {
         word_to_document_freqs_[word][document_id] += inv_word_count;
+        document_to_word_freqs_[document_id].insert(word);
     }
     documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
-    document_ids_.push_back(document_id);
+    document_ids_.insert(document_id);
 }
 
 
 int SearchServer::GetDocumentCount() const {
     return documents_.size();
 }
+std::set<int>::iterator SearchServer::begin()
+{
+    return document_ids_.begin();
+}
 
-int SearchServer::GetDocumentId(int index) const {
-    return document_ids_.at(index);
+std::set<int>::const_iterator SearchServer::begin() const
+{
+    return document_ids_.begin();
+}
+
+std::set<int>::iterator SearchServer::end()
+{
+    return document_ids_.end();
+}
+
+std::set<int>::const_iterator SearchServer::end() const
+{
+    return document_ids_.end();
+}
+const std::set<std::string>& SearchServer::GetWordFrequencies(int document_id) const {
+
+    return document_to_word_freqs_.at(document_id);
+}
+
+void SearchServer::RemoveDocument(int document_id)
+{
+    if (documents_.count(document_id) > 0)
+    {
+        documents_.erase(document_id);
+        document_to_word_freqs_.erase(document_id);
+        document_ids_.erase(document_id);
+    }
 }
 
 std::tuple<std::vector<std::string>, DocumentStatus> SearchServer::MatchDocument(const std::string& raw_query, int document_id) const {
@@ -129,3 +160,4 @@ std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_quer
 std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_query) const {
     return FindTopDocuments(raw_query, DocumentStatus::ACTUAL);
 }
+
