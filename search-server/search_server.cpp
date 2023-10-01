@@ -3,7 +3,7 @@
 #include <cmath>
 #include <numeric>
 #include <deque>
-void SearchServer::AddDocument(int document_id, std::string_view document, DocumentStatus status,
+//void SearchServer::AddDocument(int document_id, std::string_view document, DocumentStatus status,
     const std::vector<int>& ratings) {
     if ((document_id < 0) || (documents_.count(document_id) > 0)) {
         throw std::invalid_argument(std::string("Invalid document_id"));
@@ -22,7 +22,7 @@ void SearchServer::AddDocument(int document_id, std::string_view document, Docum
 }
 
 
-int SearchServer::GetDocumentCount() const {
+//int SearchServer::GetDocumentCount() const {
     return documents_.size();
 }
 std::set<int>::iterator SearchServer::begin()
