@@ -88,7 +88,7 @@ void SearchServer::RemoveDocument(std::execution::parallel_policy exe_sequence_,
 }
 
 std::tuple<std::vector<std::string_view>, DocumentStatus> SearchServer::MatchDocument(std::string_view raw_query, int document_id) const {
-    auto query = ParseQuery(raw_query, false);
+    auto query = ParseQuery(raw_query, true);
 
     for (std::string_view word : query.minus_words) {
         if (word_to_document_freqs_.count(word) == 0) {
@@ -118,7 +118,7 @@ std::tuple<std::vector<std::string_view>, DocumentStatus> SearchServer::MatchDoc
 std::tuple<std::vector<std::string_view>, DocumentStatus> SearchServer::MatchDocument
 (std::execution::parallel_policy policy, std::string_view raw_query, int document_id) const {
 
-    const auto query = ParseQuery(raw_query, true);
+    const auto query = ParseQuery(raw_query, false);
 
     //проверка на -слова
     if (std::any_of(policy, query.minus_words.begin(), query.minus_words.end(),
